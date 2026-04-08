@@ -96,7 +96,7 @@ def _generate_queries(topic: str, side: str, stance_desc: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Step 2 — Web search via Tavily
+# Step 2 — Web search via DuckDuckGo
 # ---------------------------------------------------------------------------
 
 def _search(queries: list[str]) -> list[dict]:
