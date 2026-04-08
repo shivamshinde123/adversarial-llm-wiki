@@ -8,6 +8,8 @@ import click
 from adversarial_wiki import llm
 from adversarial_wiki.utils import slugify
 
+_MAX_ROUNDS = 10  # safety cap on clarifying questions loop
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -23,6 +25,8 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
       4. Call 3 — Hidden assumption surfacer: finds underlying assumptions, generates
          3 clarifying questions
       5. Save structured output to debates/[question-slug]/output.md
+      6. Clarifying questions loop: user answers questions, LLM generates 3 deeper
+         follow-ups each round; appended to output.md until user types stop/exit
 
     Args:
         topic: Topic name.
@@ -56,6 +60,9 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
     click.echo(f"\nDebate saved to: {output_path}")
     click.echo("\n" + "=" * 60)
     click.echo(_format_for_display(question, pro_argument, con_argument, assumptions))
+
+    # Step 6: clarifying questions loop
+    _clarifying_loop(topic, question, pro_argument, con_argument, pro_articles, con_articles, output_path)
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +253,116 @@ def _format_for_display(
         f"{sep}\nWIKI B ARGUES\n{sep}\n{con_argument}\n\n"
         f"{sep}\nHIDDEN ASSUMPTIONS & CLARIFYING QUESTIONS\n{sep}\n{assumptions}\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Step 6 — Clarifying questions loop
+# ---------------------------------------------------------------------------
+
+def _clarifying_loop(
+    topic: str,
+    question: str,
+    pro_argument: str,
+    con_argument: str,
+    pro_articles: list[tuple[str, str]],
+    con_articles: list[tuple[str, str]],
+    output_path: Path,
+) -> None:
+    """Interactive loop: user answers questions, LLM generates deeper follow-ups.
+
+    Each round is appended to output_path. Nothing is ever overwritten.
+    Type 'stop' or 'exit' to quit.
+    """
+    all_answers: list[str] = []
+
+    click.echo("\nAnswer the clarifying questions above, or type 'stop' to finish.")
+
+    for round_num in range(2, _MAX_ROUNDS + 2):  # rounds 2..11 → 10 iterations max
+        user_input = click.prompt(
+            "\nYour answers (press Enter or type 'stop' to finish)",
+            default="stop",
+            prompt_suffix="\n> ",
+        )
+        if user_input.strip().lower() in ("stop", "exit"):
+            break
+
+        all_answers.append(user_input)
+
+        click.echo(f"\n  [Round {round_num}] Generating follow-up questions...")
+        new_questions = _generate_followup_questions(
+            topic, question, pro_argument, con_argument,
+            pro_articles, con_articles, all_answers,
+        )
+
+        round_text = _format_round(round_num, user_input, new_questions)
+        _append_round(output_path, round_text)
+
+        click.echo(f"\n{'=' * 60}")
+        click.echo(new_questions)
+        round_num += 1
+
+
+def _generate_followup_questions(
+    topic: str,
+    question: str,
+    pro_argument: str,
+    con_argument: str,
+    pro_articles: list[tuple[str, str]],
+    con_articles: list[tuple[str, str]],
+    all_answers: list[str],
+) -> str:
+    """Generate 3 follow-up questions grounded in wiki knowledge and user answers so far.
+
+    Note: passes full wiki articles + all prior answers every round. Context grows
+    linearly with round count and article count — acceptable for typical wikis but
+    could approach token limits for very large topics in late rounds.
+    """
+    articles_text = (
+        "### Wiki A (Pro) Articles\n" + _format_articles(pro_articles) +
+        "\n\n### Wiki B (Con) Articles\n" + _format_articles(con_articles)
+    )
+    answers_text = "\n\n".join(
+        f"Round {i + 1} answers:\n{ans}" for i, ans in enumerate(all_answers)
+    )
+    system = (
+        "You are an epistemics analyst deepening a structured debate. "
+        "The user has answered some clarifying questions. "
+        "Generate exactly 3 new follow-up questions grounded in the wiki knowledge "
+        "and informed by the user's answers so far. "
+        "Questions must be progressively more targeted to the user's specific situation. "
+        "Do not repeat questions the user has already answered. "
+        "Structure your output EXACTLY as:\n\n"
+        "### New Questions Based On Your Answers\n"
+        "1. [question]\n"
+        "2. [question]\n"
+        "3. [question]"
+    )
+    user = (
+        f"Topic: {topic}\n"
+        f"Original question: {question}\n\n"
+        f"## Debate Summary\n"
+        f"### Pro argues:\n{pro_argument}\n\n"
+        f"### Con argues:\n{con_argument}\n\n"
+        f"## Wiki Articles\n{articles_text}\n\n"
+        f"## User Answers So Far\n{answers_text}"
+    )
+    return llm.call(system, user)
+
+
+def _format_round(round_num: int, user_answers: str, new_questions: str) -> str:
+    """Format one round as a markdown section to append to output.md."""
+    return (
+        f"\n---\n\n"
+        f"## Round {round_num}\n\n"
+        f"### Your Answers\n\n{user_answers}\n\n"
+        f"{new_questions}\n"
+    )
+
+
+def _append_round(output_path: Path, round_text: str) -> None:
+    """Append a formatted round to the output file."""
+    with output_path.open("a", encoding="utf-8") as f:
+        f.write(round_text)
 
 
 # ---------------------------------------------------------------------------
