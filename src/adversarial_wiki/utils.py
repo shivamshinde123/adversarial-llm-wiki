@@ -56,10 +56,10 @@ def init_topic_dirs(topic: str, mode: str) -> Path:
 
 
 def slugify(text: str) -> str:
-    """Convert a question or title into a filesystem-safe slug."""
+    """Convert a title or question into a filesystem-safe slug."""
     import re
     text = text.lower().strip()
     text = re.sub(r"[^\w\s-]", "", text)
     text = re.sub(r"[\s_]+", "-", text)
     text = re.sub(r"-+", "-", text)
-    return text[:80].strip("-")
+    return text[:60].strip("-")

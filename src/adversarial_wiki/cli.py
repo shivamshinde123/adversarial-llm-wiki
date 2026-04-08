@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from adversarial_wiki.utils import init_topic_dirs, get_topic_dir
 from adversarial_wiki.compiler import compile_wiki
 from adversarial_wiki.research import run_research
+from adversarial_wiki.sources import read_sources_from_dir
 from adversarial_wiki.debate import run_debate
 from adversarial_wiki.lint import run_lint
 
@@ -37,21 +38,24 @@ def compile(topic, mode, pro_stance, con_stance):
     if mode == "manual":
         pro_raw = topic_dir / "raw" / "pro"
         con_raw = topic_dir / "raw" / "con"
-        pro_files = list(pro_raw.iterdir()) if pro_raw.exists() else []
-        con_files = list(con_raw.iterdir()) if con_raw.exists() else []
 
-        if not pro_files and not con_files:
+        pro_sources = read_sources_from_dir(pro_raw)
+        con_sources = read_sources_from_dir(con_raw)
+
+        if not pro_sources and not con_sources:
             click.echo(f"No source files found. Add files to:\n  {pro_raw}\n  {con_raw}")
             return
 
-        click.echo(f"Compiling wiki from {len(pro_files)} pro source(s) and {len(con_files)} con source(s)...")
-        pro_sources = [f.read_text(encoding="utf-8", errors="ignore") for f in pro_files if f.is_file()]
-        con_sources = [f.read_text(encoding="utf-8", errors="ignore") for f in con_files if f.is_file()]
-        try:
+        click.echo(f"Compiling wiki from {len(pro_sources)} pro source(s) and {len(con_sources)} con source(s)...")
+        if pro_sources:
             compile_wiki(topic, "pro", pro_sources, topic_dir)
+        else:
+            click.echo(f"Skipping pro wiki: no source files found in {pro_raw}")
+
+        if con_sources:
             compile_wiki(topic, "con", con_sources, topic_dir)
-        except NotImplementedError:
-            raise click.ClickException("Manual compilation is not implemented yet (coming in Stage 2).")
+        else:
+            click.echo(f"Skipping con wiki: no source files found in {con_raw}")
 
     elif mode == "auto":
         click.echo(f"Running auto research for topic: {topic}")

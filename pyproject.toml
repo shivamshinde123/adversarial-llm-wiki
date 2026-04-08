@@ -21,3 +21,6 @@ adversarial-wiki = "adversarial_wiki.cli:cli"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/adversarial_wiki"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
