@@ -62,16 +62,26 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
 # Step 1 — Smart retrieval
 # ---------------------------------------------------------------------------
 
+_FALLBACK_ARTICLE_LIMIT = 10
+
+
 def _retrieve_articles(question: str, wiki_dir: Path, side: str) -> list[tuple[str, str]]:
     """Two-step retrieval: read index.md first, then only relevant articles.
 
-    Never loads all wiki files at once.
+    Loads only LLM-identified articles; falls back to at most
+    _FALLBACK_ARTICLE_LIMIT articles when retrieval returns nothing.
     """
     index_path = wiki_dir / "index.md"
     if not index_path.exists():
         return []
 
     index_content = index_path.read_text(encoding="utf-8")
+
+    # Pre-compute valid stems to guard against path traversal in LLM output
+    valid_stems = {
+        p.stem for p in wiki_dir.glob("*.md")
+        if p.name not in ("index.md", "log.md")
+    }
 
     # Ask LLM which articles are relevant based on index summaries
     system = (
@@ -92,17 +102,18 @@ def _retrieve_articles(question: str, wiki_dir: Path, side: str) -> list[tuple[s
 
     slugs = _parse_slug_list(response)
 
-    # Load only the identified articles
+    # Load only identified articles that exist in the wiki (defense-in-depth)
     articles: list[tuple[str, str]] = []
     for slug in slugs:
+        if slug not in valid_stems:
+            continue
         article_path = wiki_dir / f"{slug}.md"
-        if article_path.exists():
-            content = article_path.read_text(encoding="utf-8")
-            articles.append((slug, content))
+        content = article_path.read_text(encoding="utf-8")
+        articles.append((slug, content))
 
-    # Fallback: if retrieval returned nothing, load all non-index articles
+    # Fallback: if retrieval returned nothing, load up to the cap
     if not articles:
-        for md_file in sorted(wiki_dir.glob("*.md")):
+        for md_file in sorted(wiki_dir.glob("*.md"))[:_FALLBACK_ARTICLE_LIMIT]:
             if md_file.name not in ("index.md", "log.md"):
                 articles.append((md_file.stem, md_file.read_text(encoding="utf-8")))
 
