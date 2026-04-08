@@ -80,10 +80,7 @@ def debate(topic, question):
             f"Wiki not compiled for topic '{topic}'. Run `compile` first."
         )
 
-    try:
-        run_debate(topic, question, topic_dir)
-    except NotImplementedError:
-        raise click.ClickException("The debate command is not implemented yet (coming in Stage 4).")
+    run_debate(topic, question, topic_dir)
 
 
 @cli.command()
