@@ -32,7 +32,6 @@ pip install -e .
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
-TAVILY_API_KEY=tvly-...   # only needed for --auto mode
 ```
 
 ---
@@ -282,5 +281,5 @@ pytest tests/test_stage2.py
 | `click` | CLI framework |
 | `python-dotenv` | `.env` file loading |
 | `trafilatura` | URL-to-text extraction |
-| `tavily-python` | Web search (auto mode) |
+| `duckduckgo-search` | Web search (auto mode, no API key needed) |
 | `rank-bm25` | Future: BM25 retrieval for large wikis |

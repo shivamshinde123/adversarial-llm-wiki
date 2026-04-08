@@ -1,7 +1,6 @@
 """Auto Research Agent — searches the web and feeds content to the compiler."""
 
 import json
-import os
 import re
 from datetime import date
 from pathlib import Path
@@ -101,37 +100,27 @@ def _generate_queries(topic: str, side: str, stance_desc: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _search(queries: list[str]) -> list[dict]:
-    """Run each query against Tavily and return deduplicated results."""
-    api_key = os.environ.get("TAVILY_API_KEY")
-    if not api_key:
-        # Fix 2: raise ClickException so CLI shows a clean message without traceback
-        raise click.ClickException(
-            "TAVILY_API_KEY is not set. Copy .env.example to .env and add your key."
-        )
-
-    from tavily import TavilyClient
-    client = TavilyClient(api_key=api_key)
+    """Run each query against DuckDuckGo and return deduplicated results."""
+    from duckduckgo_search import DDGS
 
     seen_urls: set[str] = set()
     results: list[dict] = []
 
-    for query in queries:
-        try:
-            response = client.search(query=query, max_results=5)
-            for r in response.get("results", []):
-                url = r.get("url", "")
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    results.append({
-                        "url": url,
-                        "title": r.get("title", ""),
-                        "snippet": r.get("content", ""),
-                        "query": query,
-                    })
-        except click.ClickException:
-            raise
-        except Exception as e:
-            click.echo(f"  Warning: search failed for '{query}': {e}", err=True)
+    with DDGS() as ddgs:
+        for query in queries:
+            try:
+                for r in ddgs.text(query, max_results=5) or []:
+                    url = r.get("href", "")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        results.append({
+                            "url": url,
+                            "title": r.get("title", ""),
+                            "snippet": r.get("body", ""),
+                            "query": query,
+                        })
+            except Exception as e:
+                click.echo(f"  Warning: search failed for '{query}': {e}", err=True)
 
     return results
 
