@@ -52,7 +52,7 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
     assumptions = _surface_assumptions(topic, question, pro_argument, con_argument)
 
     # Step 5: save output
-    output_path = _save_output(topic, question, pro_argument, con_argument, assumptions, topic_dir)
+    output_path = _save_output(question, pro_argument, con_argument, assumptions, topic_dir, pro_articles, con_articles)
     click.echo(f"\nDebate saved to: {output_path}")
     click.echo("\n" + "=" * 60)
     click.echo(_format_for_display(question, pro_argument, con_argument, assumptions))
@@ -179,12 +179,13 @@ def _surface_assumptions(
 # ---------------------------------------------------------------------------
 
 def _save_output(
-    topic: str,
     question: str,
     pro_argument: str,
     con_argument: str,
     assumptions: str,
     topic_dir: Path,
+    pro_articles: list[tuple[str, str]] | None = None,
+    con_articles: list[tuple[str, str]] | None = None,
 ) -> Path:
     """Format and save the debate output to debates/[question-slug]/output.md."""
     slug = slugify(question)
@@ -192,7 +193,7 @@ def _save_output(
     debate_dir.mkdir(parents=True, exist_ok=True)
     output_path = debate_dir / "output.md"
 
-    content = _format_output_md(question, pro_argument, con_argument, assumptions)
+    content = _format_output_md(question, pro_argument, con_argument, assumptions, pro_articles, con_articles)
     output_path.write_text(content, encoding="utf-8")
     return output_path
 
@@ -202,7 +203,10 @@ def _format_output_md(
     pro_argument: str,
     con_argument: str,
     assumptions: str,
+    pro_articles: list[tuple[str, str]] | None = None,
+    con_articles: list[tuple[str, str]] | None = None,
 ) -> str:
+    sources_section = _format_sources(pro_articles or [], con_articles or [])
     return (
         f"# Question\n\n{question}\n\n"
         f"*Generated: {date.today()}*\n\n"
@@ -211,7 +215,9 @@ def _format_output_md(
         "---\n\n"
         f"## Wiki B Argues\n\n{con_argument}\n\n"
         "---\n\n"
-        f"## Hidden Assumptions\n\n{assumptions}\n"
+        f"## Hidden Assumptions\n\n{assumptions}\n\n"
+        "---\n\n"
+        f"## Sources\n\n{sources_section}"
     )
 
 
@@ -236,16 +242,41 @@ def _format_for_display(
 # ---------------------------------------------------------------------------
 
 def _parse_slug_list(response: str) -> list[str]:
-    """Parse a JSON array of slugs from an LLM response."""
+    """Parse a JSON array of slugs from an LLM response.
+
+    Strips the .md extension if present and discards any slug that contains
+    path separators or '..' to prevent path traversal via LLM-returned values.
+    """
     import json
+    import re
     from adversarial_wiki.utils import extract_json
     try:
         parsed = json.loads(extract_json(response))
         if isinstance(parsed, list):
-            return [str(s).strip().removesuffix(".md") for s in parsed if str(s).strip()]
+            slugs = []
+            for s in parsed:
+                slug = str(s).strip().removesuffix(".md")
+                # Reject slugs with path separators or parent-directory components
+                if slug and not re.search(r'[/\\]|\.\.', slug):
+                    slugs.append(slug)
+            return slugs
     except (json.JSONDecodeError, ValueError):
         pass
     return []
+
+
+def _format_sources(
+    pro_articles: list[tuple[str, str]],
+    con_articles: list[tuple[str, str]],
+) -> str:
+    """Format a sources section listing the wiki articles consulted on each side."""
+    def _bullet_list(articles: list[tuple[str, str]]) -> str:
+        return "\n".join(f"- [[{slug}]]" for slug, _ in articles) or "*none*"
+
+    return (
+        f"### Wiki A (Pro)\n{_bullet_list(pro_articles)}\n\n"
+        f"### Wiki B (Con)\n{_bullet_list(con_articles)}\n"
+    )
 
 
 def _format_articles(articles: list[tuple[str, str]]) -> str:

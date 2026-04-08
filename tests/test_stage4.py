@@ -32,6 +32,15 @@ def test_parse_slug_list_bad_json_returns_empty():
 def test_parse_slug_list_empty_array():
     assert _parse_slug_list("[]") == []
 
+def test_parse_slug_list_rejects_path_traversal():
+    """Slugs with path separators or '..' must be discarded (security)."""
+    result = _parse_slug_list('["../../etc/passwd", "valid-slug", "../secret"]')
+    assert result == ["valid-slug"]
+
+def test_parse_slug_list_rejects_slashes():
+    result = _parse_slug_list('["good", "sub/dir", "back\\\\slash"]')
+    assert result == ["good"]
+
 def test_format_articles():
     articles = [("productivity", "Content A"), ("burnout", "Content B")]
     result = _format_articles(articles)
@@ -49,6 +58,15 @@ def test_format_output_md_structure():
     assert "Con arg" in md
     assert "## Hidden Assumptions" in md
     assert "Assumptions text" in md
+    assert "## Sources" in md
+
+def test_format_output_md_sources_lists_articles():
+    pro = [("productivity", ""), ("remote", "")]
+    con = [("burnout", "")]
+    md = _format_output_md("Q?", "pro", "con", "assump", pro, con)
+    assert "[[productivity]]" in md
+    assert "[[remote]]" in md
+    assert "[[burnout]]" in md
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +132,7 @@ def test_save_output_creates_file(tmp_path):
     (topic_dir / "debates").mkdir()
 
     path = _save_output(
-        "test-topic", "Should I go remote?",
+        "Should I go remote?",
         "Pro argument here.", "Con argument here.",
         "Assumptions here.", topic_dir,
     )
@@ -131,7 +149,7 @@ def test_save_output_slug_used_as_dir(tmp_path):
     (topic_dir / "debates").mkdir()
 
     path = _save_output(
-        "test", "Is remote work productive?",
+        "Is remote work productive?",
         "pro", "con", "assumptions", topic_dir,
     )
 
@@ -205,3 +223,4 @@ def test_run_debate_output_file_has_all_sections(mock_llm, tmp_path):
     assert "## Hidden Assumptions" in content
     assert "Wiki A assumes:" in content
     assert "Wiki B assumes:" in content
+    assert "## Sources" in content
