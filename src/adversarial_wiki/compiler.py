@@ -6,7 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from adversarial_wiki import llm
-from adversarial_wiki.utils import slugify
+from adversarial_wiki.utils import slugify, extract_json as _extract_json
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +151,9 @@ def _write_article(
         source_urls = [r["url"] for r in source_records]
         frontmatter_lines.append("sources:")
         for url in source_urls:
-            frontmatter_lines.append(f"  - {url}")
+            # Single-quote URLs so colons and special chars don't break YAML
+            escaped = url.replace("'", "''")
+            frontmatter_lines.append(f"  - '{escaped}'")
     frontmatter_lines.append("---")
     frontmatter = "\n".join(frontmatter_lines)
 
@@ -281,50 +283,6 @@ def _combine_sources(sources: list[tuple[str, str]]) -> str:
     for name, content in sources:
         parts.append(f"=== Source: {name} ===\n\n{content}")
     return "\n\n---\n\n".join(parts)
-
-
-def _extract_json(text: str) -> str:
-    """Pull the first complete JSON array or object out of an LLM response
-    using a bracket-matching parser to avoid greedy over-capture."""
-    start = None
-    opening = ""
-    closing = ""
-
-    for i, ch in enumerate(text):
-        if ch == "[":
-            start, opening, closing = i, "[", "]"
-            break
-        if ch == "{":
-            start, opening, closing = i, "{", "}"
-            break
-
-    if start is None:
-        return text.strip()
-
-    depth = 0
-    in_string = False
-    escape = False
-
-    for i in range(start, len(text)):
-        ch = text[i]
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == opening:
-            depth += 1
-        elif ch == closing:
-            depth -= 1
-            if depth == 0:
-                return text[start:i + 1]
-
-    return text.strip()
 
 
 def _extract_summary(article_body: str, concept: str) -> str:

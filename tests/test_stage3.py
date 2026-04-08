@@ -7,10 +7,10 @@ from unittest.mock import patch, MagicMock
 from adversarial_wiki.research import (
     _generate_queries,
     _url_to_filename,
-    _extract_first_json,
     _write_sources_json,
     _find_articles_using_url,
 )
+from adversarial_wiki.utils import extract_json as _extract_first_json
 from adversarial_wiki.compiler import compile_wiki
 
 

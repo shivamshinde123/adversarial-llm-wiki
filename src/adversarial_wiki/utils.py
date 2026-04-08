@@ -63,3 +63,49 @@ def slugify(text: str) -> str:
     text = re.sub(r"[\s_]+", "-", text)
     text = re.sub(r"-+", "-", text)
     return text[:60].strip("-")
+
+
+def extract_json(text: str) -> str:
+    """Extract the first complete JSON array or object from *text*.
+
+    Uses bracket-matching (respecting strings and escape sequences) to avoid
+    greedy over-capture.  Returns *text* stripped if no bracket is found.
+    """
+    start: int | None = None
+    opening = closing = ""
+
+    for i, ch in enumerate(text):
+        if ch == "[":
+            start, opening, closing = i, "[", "]"
+            break
+        if ch == "{":
+            start, opening, closing = i, "{", "}"
+            break
+
+    if start is None:
+        return text.strip()
+
+    depth = 0
+    in_string = False
+    escape = False
+
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == opening:
+            depth += 1
+        elif ch == closing:
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+
+    return text.strip()

@@ -6,12 +6,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from adversarial_wiki.compiler import (
-    _extract_json,
     _extract_summary,
     _combine_sources,
     compile_wiki,
 )
-from adversarial_wiki.utils import slugify
+from adversarial_wiki.utils import slugify, extract_json as _extract_json
 from adversarial_wiki.sources import read_sources_from_dir
 
 

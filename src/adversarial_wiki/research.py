@@ -9,6 +9,7 @@ import click
 
 from adversarial_wiki import llm
 from adversarial_wiki.compiler import compile_wiki
+from adversarial_wiki.utils import extract_json as _extract_first_json
 
 
 # ---------------------------------------------------------------------------
@@ -230,41 +231,3 @@ def _url_to_filename(url: str) -> str:
     name = re.sub(r"[^\w.-]", "-", name)
     name = re.sub(r"-+", "-", name).strip("-")
     return f"{name[:60]}.txt"
-
-
-def _extract_first_json(text: str) -> str:
-    """Extract the first complete JSON array or object using bracket matching."""
-    start = None
-    opening = closing = ""
-    for i, ch in enumerate(text):
-        if ch == "[":
-            start, opening, closing = i, "[", "]"
-            break
-        if ch == "{":
-            start, opening, closing = i, "{", "}"
-            break
-    if start is None:
-        return text.strip()
-
-    depth = 0
-    in_string = False
-    escape = False
-    for i in range(start, len(text)):
-        ch = text[i]
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == opening:
-            depth += 1
-        elif ch == closing:
-            depth -= 1
-            if depth == 0:
-                return text[start:i + 1]
-    return text.strip()
