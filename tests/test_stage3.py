@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from adversarial_wiki.research import (
     _generate_queries,
@@ -10,7 +10,7 @@ from adversarial_wiki.research import (
     _write_sources_json,
     _find_articles_using_url,
 )
-from adversarial_wiki.utils import extract_json as _extract_first_json
+from adversarial_wiki.utils import extract_json
 from adversarial_wiki.compiler import compile_wiki
 
 
@@ -18,13 +18,13 @@ from adversarial_wiki.compiler import compile_wiki
 # _extract_first_json (shared bracket-matching logic)
 # ---------------------------------------------------------------------------
 
-def test_extract_first_json_array():
+def test_extract_json_array():
     text = 'Preamble ["query one", "query two"] done'
-    result = json.loads(_extract_first_json(text))
+    result = json.loads(extract_json(text))
     assert result == ["query one", "query two"]
 
-def test_extract_first_json_no_match():
-    assert _extract_first_json("nothing here") == "nothing here"
+def test_extract_json_no_match():
+    assert extract_json("nothing here") == "nothing here"
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +138,8 @@ def test_find_articles_using_url(tmp_path):
 
 MOCK_CONCEPTS = '["Productivity"]'
 MOCK_ARTICLE = "## Overview\nContent.\n\n## Summary\nThis is the summary."
+# Article body that explicitly cites a URL (simulates LLM mentioning its source)
+MOCK_ARTICLE_WITH_URL = "## Overview\nSee https://example.com/a for details.\n\n## Summary\nThis is the summary."
 
 @patch("adversarial_wiki.llm.call")
 def test_auto_mode_article_has_frontmatter(mock_llm, tmp_path):
@@ -159,6 +161,29 @@ def test_auto_mode_article_has_frontmatter(mock_llm, tmp_path):
     article = (topic_dir / "wiki" / "pro" / "productivity.md").read_text()
     assert "mode: auto" in article
     assert "compiled:" in article
+    # URL not cited in body — should not appear in frontmatter (Fix 4)
+    assert "https://example.com/a" not in article
+
+@patch("adversarial_wiki.llm.call")
+def test_auto_mode_article_cites_url_in_frontmatter_when_body_mentions_it(mock_llm, tmp_path):
+    mock_llm.side_effect = [MOCK_CONCEPTS, MOCK_ARTICLE_WITH_URL, "[]"]
+    topic_dir = tmp_path / "topics" / "test"
+    (topic_dir / "wiki" / "pro").mkdir(parents=True)
+
+    source_records = [
+        {"url": "https://example.com/a", "title": "A", "retrieved": "2026-04-07", "used_in": []}
+    ]
+    compile_wiki(
+        "test", "pro",
+        [("a.txt", "content")],
+        topic_dir,
+        mode="auto",
+        source_records=source_records,
+    )
+
+    article = (topic_dir / "wiki" / "pro" / "productivity.md").read_text()
+    # URL cited in body — should appear in frontmatter sources list
+    assert "sources:" in article
     assert "https://example.com/a" in article
 
 @patch("adversarial_wiki.llm.call")

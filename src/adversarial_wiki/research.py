@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from datetime import date
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import click
 
 from adversarial_wiki import llm
 from adversarial_wiki.compiler import compile_wiki
-from adversarial_wiki.utils import extract_json as _extract_first_json
+from adversarial_wiki.utils import extract_json
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +85,11 @@ def _generate_queries(topic: str, side: str, stance_desc: str) -> list[str]:
     )
     response = llm.call(system, user, max_tokens=512)
     try:
-        queries = json.loads(_extract_first_json(response))
+        queries = json.loads(extract_json(response))
         if isinstance(queries, list):
-            return [str(q).strip() for q in queries if str(q).strip()][:5]
+            cleaned = [str(q).strip() for q in queries if str(q).strip()][:5]
+            if cleaned:  # Fix 1: guard against empty list after parsing
+                return cleaned
     except (json.JSONDecodeError, ValueError):
         pass
     # Fallback: one generic query
@@ -101,7 +104,10 @@ def _search(queries: list[str]) -> list[dict]:
     """Run each query against Tavily and return deduplicated results."""
     api_key = os.environ.get("TAVILY_API_KEY")
     if not api_key:
-        raise RuntimeError("TAVILY_API_KEY is not set. Copy .env.example to .env and add your key.")
+        # Fix 2: raise ClickException so CLI shows a clean message without traceback
+        raise click.ClickException(
+            "TAVILY_API_KEY is not set. Copy .env.example to .env and add your key."
+        )
 
     from tavily import TavilyClient
     client = TavilyClient(api_key=api_key)
@@ -122,6 +128,8 @@ def _search(queries: list[str]) -> list[dict]:
                         "snippet": r.get("content", ""),
                         "query": query,
                     })
+        except click.ClickException:
+            raise
         except Exception as e:
             click.echo(f"  Warning: search failed for '{query}': {e}", err=True)
 
@@ -156,7 +164,6 @@ def _fetch_sources(search_results: list[dict]) -> tuple[list[tuple[str, str]], l
                 click.echo(f"  Warning: no content extracted from {url}", err=True)
                 continue
 
-            # Use domain + path slug as filename for readability in logs
             filename = _url_to_filename(url)
             content = f"[Source: {url}]\n[Title: {result['title']}]\n\n{text}"
             sources.append((filename, content))
@@ -164,7 +171,7 @@ def _fetch_sources(search_results: list[dict]) -> tuple[list[tuple[str, str]], l
                 "url": url,
                 "title": result["title"],
                 "retrieved": str(date.today()),
-                "used_in": [],  # populated by compiler via post-processing
+                "used_in": [],
             })
         except Exception as e:
             click.echo(f"  Warning: error fetching {url}: {e}", err=True)
@@ -186,7 +193,6 @@ def _write_sources_json(
     wiki_dir = topic_dir / "wiki" / side
     wiki_dir.mkdir(parents=True, exist_ok=True)
 
-    # Populate used_in by scanning article frontmatter
     for record in source_records:
         record["used_in"] = _find_articles_using_url(record["url"], wiki_dir)
 
@@ -204,7 +210,7 @@ def _write_sources_json(
 
 
 def _find_articles_using_url(url: str, wiki_dir: Path) -> list[str]:
-    """Scan article frontmatter and body to find which files reference this URL."""
+    """Scan article files to find which ones reference this URL."""
     used_in = []
     for md_file in wiki_dir.glob("*.md"):
         if md_file.name in ("index.md", "log.md"):
@@ -224,10 +230,7 @@ def _find_articles_using_url(url: str, wiki_dir: Path) -> list[str]:
 
 def _url_to_filename(url: str) -> str:
     """Convert a URL to a short readable filename."""
-    import re
-    # Strip scheme and www
     name = re.sub(r"^https?://(www\.)?", "", url)
-    # Keep only alphanumeric, hyphens, dots
     name = re.sub(r"[^\w.-]", "-", name)
     name = re.sub(r"-+", "-", name).strip("-")
     return f"{name[:60]}.txt"

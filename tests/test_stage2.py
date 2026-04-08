@@ -6,11 +6,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from adversarial_wiki.compiler import (
+
     _extract_summary,
     _combine_sources,
     compile_wiki,
 )
-from adversarial_wiki.utils import slugify, extract_json as _extract_json
+from adversarial_wiki.utils import slugify, extract_json
 from adversarial_wiki.sources import read_sources_from_dir
 
 
@@ -38,26 +39,26 @@ def test_slugify_empty_punctuation():
 
 def test_extract_json_array():
     text = 'Some preamble ["Concept A", "Concept B"] trailing'
-    assert json.loads(_extract_json(text)) == ["Concept A", "Concept B"]
+    assert json.loads(extract_json(text)) == ["Concept A", "Concept B"]
 
 def test_extract_json_no_match():
-    result = _extract_json("no json here")
+    result = extract_json("no json here")
     assert result == "no json here"
 
 def test_extract_json_nested():
     text = 'prefix [["a", "b"], ["c"]] suffix'
-    result = json.loads(_extract_json(text))
+    result = json.loads(extract_json(text))
     assert result == [["a", "b"], ["c"]]
 
 def test_extract_json_does_not_over_capture():
     # Two separate arrays — should only return the first complete one
     text = '["first"] and then ["second"]'
-    result = json.loads(_extract_json(text))
+    result = json.loads(extract_json(text))
     assert result == ["first"]
 
 def test_extract_json_object():
     text = 'here is {"key": "value"} done'
-    result = json.loads(_extract_json(text))
+    result = json.loads(extract_json(text))
     assert result == {"key": "value"}
 
 

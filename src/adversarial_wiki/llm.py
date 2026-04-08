@@ -2,6 +2,7 @@
 
 import os
 import anthropic
+import click
 
 _client: anthropic.Anthropic | None = None
 
@@ -14,7 +15,7 @@ def get_client() -> anthropic.Anthropic:
     if _client is None:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
+            raise click.ClickException("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
         _client = anthropic.Anthropic(api_key=api_key)
     return _client
 

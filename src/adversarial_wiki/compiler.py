@@ -6,7 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from adversarial_wiki import llm
-from adversarial_wiki.utils import slugify, extract_json as _extract_json
+from adversarial_wiki.utils import slugify, extract_json
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def _extract_concepts(topic: str, side: str, combined: str) -> list[str]:
     )
     response = llm.call(system, user, max_tokens=1024)
     try:
-        concepts = json.loads(_extract_json(response))
+        concepts = json.loads(extract_json(response))
         if isinstance(concepts, list):
             return [str(c).strip() for c in concepts if str(c).strip()]
     except (json.JSONDecodeError, ValueError):
@@ -138,7 +138,8 @@ def _write_article(
     )
     article_body = llm.call(system, user)
 
-    # Build YAML frontmatter
+    # Fix 4: only include URLs that actually appear in this article's body,
+    # not all source URLs — gives accurate per-article attribution
     alias = json.dumps(concept)
     frontmatter_lines = [
         "---",
@@ -148,12 +149,11 @@ def _write_article(
         f"mode: {mode}",
     ]
     if mode == "auto" and source_records:
-        source_urls = [r["url"] for r in source_records]
-        frontmatter_lines.append("sources:")
-        for url in source_urls:
-            # Single-quote URLs so colons and special chars don't break YAML
-            escaped = url.replace("'", "''")
-            frontmatter_lines.append(f"  - '{escaped}'")
+        cited_urls = [r["url"] for r in source_records if r["url"] in article_body]
+        if cited_urls:
+            frontmatter_lines.append("sources:")
+            for url in cited_urls:
+                frontmatter_lines.append(f"  - {url}")
     frontmatter_lines.append("---")
     frontmatter = "\n".join(frontmatter_lines)
 
@@ -248,7 +248,7 @@ def _flag_contradictions(
     response = llm.call(system, user, max_tokens=1024)
 
     try:
-        flags = json.loads(_extract_json(response))
+        flags = json.loads(extract_json(response))
     except (json.JSONDecodeError, ValueError):
         return
 
@@ -283,6 +283,7 @@ def _combine_sources(sources: list[tuple[str, str]]) -> str:
     for name, content in sources:
         parts.append(f"=== Source: {name} ===\n\n{content}")
     return "\n\n---\n\n".join(parts)
+
 
 
 def _extract_summary(article_body: str, concept: str) -> str:
