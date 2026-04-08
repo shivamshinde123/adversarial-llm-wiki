@@ -177,6 +177,20 @@ def test_check_frontmatter_flags_missing_frontmatter_block(tmp_path):
     assert any("missing frontmatter" in i for i in issues)
 
 
+def test_check_frontmatter_does_not_match_field_in_body(tmp_path):
+    """Fields that appear only in the body (not the YAML block) must not satisfy the check."""
+    page = tmp_path / "productivity.md"
+    # mode: and compiled: appear only in the body paragraph, not in frontmatter
+    page.write_text(
+        "---\naliases:\n  - Productivity\n---\n"
+        "# Productivity\n\nThe mode: of operation and compiled: output are discussed here.\n",
+        encoding="utf-8",
+    )
+    issues = _check_frontmatter([page])
+    assert any("mode" in i for i in issues)
+    assert any("compiled" in i for i in issues)
+
+
 # ---------------------------------------------------------------------------
 # _lint_side
 # ---------------------------------------------------------------------------
@@ -185,6 +199,18 @@ def test_lint_side_passes_clean_manual_wiki(tmp_path):
     _make_wiki(tmp_path)
     issues = _lint_side("pro", tmp_path / "wiki" / "pro")
     assert issues == []
+
+
+def test_lint_side_stem_substring_not_treated_as_reference(tmp_path):
+    """A stem that appears only as part of a longer word must still be treated as orphaned."""
+    wiki_dir = _make_wiki(
+        tmp_path,
+        concept_pages={"cost": "# Cost", "productivity": "# Productivity"},
+        # "cost" appears only inside "cost-benefit", not as a standalone word or [[cost]]
+        index_content="## [[productivity]]\nSee the cost-benefit section.\n",
+    )
+    issues = _lint_side("pro", tmp_path / "wiki" / "pro")
+    assert any("cost" in i and "Orphaned" in i for i in issues)
 
 
 def test_lint_side_missing_wiki_dir(tmp_path):

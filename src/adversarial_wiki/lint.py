@@ -105,8 +105,14 @@ def _get_concept_pages(wiki_dir: Path) -> list[Path]:
 
 
 def _stem_referenced(stem: str, text: str) -> bool:
-    """True if the page stem appears in text as a wiki-link or plain reference."""
-    return f"[[{stem}]]" in text or stem in text
+    """True if the page stem appears in text as a wiki-link or standalone reference.
+
+    A "standalone" reference means the stem is not part of a longer word or
+    hyphenated compound, e.g. ``cost`` in ``cost-benefit`` is NOT a reference.
+    """
+    return f"[[{stem}]]" in text or bool(
+        re.search(r'\b' + re.escape(stem) + r'(?![-\w])', text)
+    )
 
 
 def _check_broken_links(page: Path, valid_stems: set[str]) -> list[str]:
@@ -154,8 +160,11 @@ def _check_frontmatter(concept_pages: list[Path]) -> list[str]:
         if not content.startswith("---"):
             issues.append(f"{page.name}: missing frontmatter")
             continue
+        # Scope the check to the frontmatter block only (between the two "---" fences)
+        end = content.find("\n---", 3)
+        frontmatter_block = content[: end + 4] if end != -1 else content
         for field in _AUTO_REQUIRED_FIELDS:
-            if field not in content:
+            if field not in frontmatter_block:
                 issues.append(f"{page.name}: frontmatter missing '{field.rstrip(':')}'")
     return issues
 
