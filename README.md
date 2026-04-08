@@ -65,6 +65,12 @@ adversarial-wiki compile --topic "remote-work" --auto
 
 # Custom stances
 adversarial-wiki compile --topic "remote-work" --auto --pro "remote work boosts individual productivity and well-being" --con "remote work weakens team cohesion and company culture"
+
+# Ask a question
+adversarial-wiki debate --topic "remote-work" --question "Should our team go fully remote?"
+
+# Check wiki health
+adversarial-wiki lint --topic "remote-work"
 ```
 
 ---
