@@ -163,8 +163,9 @@ def test_save_output_slug_used_as_dir(tmp_path):
 MOCK_INDEX = "## [[productivity]]\nAbout productivity gains.\n## [[burnout]]\nAbout burnout risks."
 MOCK_ARTICLE = "# Productivity\n\nRemote work boosts productivity."
 
+@patch("click.prompt", return_value="stop")
 @patch("adversarial_wiki.llm.call")
-def test_run_debate_makes_three_llm_calls(mock_llm, tmp_path):
+def test_run_debate_makes_three_llm_calls(mock_llm, mock_prompt, tmp_path):
     topic_dir = tmp_path
     wiki_pro = topic_dir / "wiki" / "pro"
     wiki_con = topic_dir / "wiki" / "con"
@@ -189,8 +190,9 @@ def test_run_debate_makes_three_llm_calls(mock_llm, tmp_path):
 
     assert mock_llm.call_count == 5  # 2 retrieval + 3 debate calls
 
+@patch("click.prompt", return_value="stop")
 @patch("adversarial_wiki.llm.call")
-def test_run_debate_output_file_has_all_sections(mock_llm, tmp_path):
+def test_run_debate_output_file_has_all_sections(mock_llm, mock_prompt, tmp_path):
     topic_dir = tmp_path
     wiki_pro = topic_dir / "wiki" / "pro"
     wiki_con = topic_dir / "wiki" / "con"
