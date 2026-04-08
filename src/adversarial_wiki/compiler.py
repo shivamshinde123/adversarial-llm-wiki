@@ -13,7 +13,14 @@ from adversarial_wiki.utils import slugify
 # Public API
 # ---------------------------------------------------------------------------
 
-def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_dir: Path) -> None:
+def compile_wiki(
+    topic: str,
+    side: str,
+    sources: list[tuple[str, str]],
+    topic_dir: Path,
+    mode: str = "manual",
+    source_records: list[dict] | None = None,
+) -> None:
     """Compile source content into a structured wiki for one side.
 
     Args:
@@ -21,6 +28,9 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
         side: 'pro' or 'con'.
         sources: List of (filename, content) tuples from source documents.
         topic_dir: Path to the topic root directory.
+        mode: 'manual' or 'auto' — controls article frontmatter content.
+        source_records: In auto mode, list of source dicts with url/title/retrieved
+            fields used to populate per-article frontmatter.
     """
     wiki_dir = topic_dir / "wiki" / side
     wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -30,7 +40,7 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
     # Step 1: extract concept names
     raw_concepts = _extract_concepts(topic, side, combined)
 
-    # Fix 5: filter out concepts that produce empty slugs; deduplicate slugs
+    # Filter out concepts with empty slugs; deduplicate slugs
     concepts: list[tuple[str, str]] = []  # (concept_name, slug)
     seen_slugs: set[str] = set()
     for concept in raw_concepts:
@@ -43,7 +53,10 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
     # Step 2: write one article per concept
     written: list[tuple[str, str, str]] = []  # (slug, concept_name, summary)
     for concept, slug in concepts:
-        summary = _write_article(topic, side, concept, slug, combined, wiki_dir)
+        summary = _write_article(
+            topic, side, concept, slug, combined, wiki_dir,
+            mode=mode, source_records=source_records,
+        )
         written.append((slug, concept, summary))
 
     # Step 3: write index.md
@@ -100,6 +113,8 @@ def _write_article(
     slug: str,
     combined: str,
     wiki_dir: Path,
+    mode: str = "manual",
+    source_records: list[dict] | None = None,
 ) -> str:
     """Write a single wiki article and return its summary."""
     system = (
@@ -123,11 +138,26 @@ def _write_article(
     )
     article_body = llm.call(system, user)
 
-    # Fix 4: add YAML frontmatter aliases so [[Concept Name]] resolves to slug filename in Obsidian
+    # Build YAML frontmatter
     alias = json.dumps(concept)
+    frontmatter_lines = [
+        "---",
+        "aliases:",
+        f"  - {alias}",
+        f"compiled: {date.today()}",
+        f"mode: {mode}",
+    ]
+    if mode == "auto" and source_records:
+        source_urls = [r["url"] for r in source_records]
+        frontmatter_lines.append("sources:")
+        for url in source_urls:
+            frontmatter_lines.append(f"  - {url}")
+    frontmatter_lines.append("---")
+    frontmatter = "\n".join(frontmatter_lines)
+
     path = wiki_dir / f"{slug}.md"
     path.write_text(
-        f"---\naliases:\n  - {alias}\n---\n# {concept}\n\n{article_body}\n",
+        f"{frontmatter}\n# {concept}\n\n{article_body}\n",
         encoding="utf-8",
     )
 
