@@ -6,14 +6,21 @@ from datetime import date
 from pathlib import Path
 
 from adversarial_wiki import llm
-from adversarial_wiki.utils import slugify
+from adversarial_wiki.utils import slugify, extract_json
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_dir: Path) -> None:
+def compile_wiki(
+    topic: str,
+    side: str,
+    sources: list[tuple[str, str]],
+    topic_dir: Path,
+    mode: str = "manual",
+    source_records: list[dict] | None = None,
+) -> None:
     """Compile source content into a structured wiki for one side.
 
     Args:
@@ -21,6 +28,9 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
         side: 'pro' or 'con'.
         sources: List of (filename, content) tuples from source documents.
         topic_dir: Path to the topic root directory.
+        mode: 'manual' or 'auto' — controls article frontmatter content.
+        source_records: In auto mode, list of source dicts with url/title/retrieved
+            fields used to populate per-article frontmatter.
     """
     wiki_dir = topic_dir / "wiki" / side
     wiki_dir.mkdir(parents=True, exist_ok=True)
@@ -30,7 +40,7 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
     # Step 1: extract concept names
     raw_concepts = _extract_concepts(topic, side, combined)
 
-    # Fix 5: filter out concepts that produce empty slugs; deduplicate slugs
+    # Filter out concepts with empty slugs; deduplicate slugs
     concepts: list[tuple[str, str]] = []  # (concept_name, slug)
     seen_slugs: set[str] = set()
     for concept in raw_concepts:
@@ -43,7 +53,10 @@ def compile_wiki(topic: str, side: str, sources: list[tuple[str, str]], topic_di
     # Step 2: write one article per concept
     written: list[tuple[str, str, str]] = []  # (slug, concept_name, summary)
     for concept, slug in concepts:
-        summary = _write_article(topic, side, concept, slug, combined, wiki_dir)
+        summary = _write_article(
+            topic, side, concept, slug, combined, wiki_dir,
+            mode=mode, source_records=source_records,
+        )
         written.append((slug, concept, summary))
 
     # Step 3: write index.md
@@ -80,7 +93,7 @@ def _extract_concepts(topic: str, side: str, combined: str) -> list[str]:
     )
     response = llm.call(system, user, max_tokens=1024)
     try:
-        concepts = json.loads(_extract_json(response))
+        concepts = json.loads(extract_json(response))
         if isinstance(concepts, list):
             return [str(c).strip() for c in concepts if str(c).strip()]
     except (json.JSONDecodeError, ValueError):
@@ -100,6 +113,8 @@ def _write_article(
     slug: str,
     combined: str,
     wiki_dir: Path,
+    mode: str = "manual",
+    source_records: list[dict] | None = None,
 ) -> str:
     """Write a single wiki article and return its summary."""
     system = (
@@ -123,11 +138,28 @@ def _write_article(
     )
     article_body = llm.call(system, user)
 
-    # Fix 4: add YAML frontmatter aliases so [[Concept Name]] resolves to slug filename in Obsidian
+    # Fix 4: only include URLs that actually appear in this article's body,
+    # not all source URLs — gives accurate per-article attribution
     alias = json.dumps(concept)
+    frontmatter_lines = [
+        "---",
+        "aliases:",
+        f"  - {alias}",
+        f"compiled: {date.today()}",
+        f"mode: {mode}",
+    ]
+    if mode == "auto" and source_records:
+        cited_urls = [r["url"] for r in source_records if r["url"] in article_body]
+        if cited_urls:
+            frontmatter_lines.append("sources:")
+            for url in cited_urls:
+                frontmatter_lines.append(f"  - {url}")
+    frontmatter_lines.append("---")
+    frontmatter = "\n".join(frontmatter_lines)
+
     path = wiki_dir / f"{slug}.md"
     path.write_text(
-        f"---\naliases:\n  - {alias}\n---\n# {concept}\n\n{article_body}\n",
+        f"{frontmatter}\n# {concept}\n\n{article_body}\n",
         encoding="utf-8",
     )
 
@@ -216,7 +248,7 @@ def _flag_contradictions(
     response = llm.call(system, user, max_tokens=1024)
 
     try:
-        flags = json.loads(_extract_json(response))
+        flags = json.loads(extract_json(response))
     except (json.JSONDecodeError, ValueError):
         return
 
@@ -252,49 +284,6 @@ def _combine_sources(sources: list[tuple[str, str]]) -> str:
         parts.append(f"=== Source: {name} ===\n\n{content}")
     return "\n\n---\n\n".join(parts)
 
-
-def _extract_json(text: str) -> str:
-    """Pull the first complete JSON array or object out of an LLM response
-    using a bracket-matching parser to avoid greedy over-capture."""
-    start = None
-    opening = ""
-    closing = ""
-
-    for i, ch in enumerate(text):
-        if ch == "[":
-            start, opening, closing = i, "[", "]"
-            break
-        if ch == "{":
-            start, opening, closing = i, "{", "}"
-            break
-
-    if start is None:
-        return text.strip()
-
-    depth = 0
-    in_string = False
-    escape = False
-
-    for i in range(start, len(text)):
-        ch = text[i]
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch == opening:
-            depth += 1
-        elif ch == closing:
-            depth -= 1
-            if depth == 0:
-                return text[start:i + 1]
-
-    return text.strip()
 
 
 def _extract_summary(article_body: str, concept: str) -> str:

@@ -59,10 +59,7 @@ def compile(topic, mode, pro_stance, con_stance):
 
     elif mode == "auto":
         click.echo(f"Running auto research for topic: {topic}")
-        try:
-            run_research(topic, pro_stance, con_stance, topic_dir)
-        except NotImplementedError:
-            raise click.ClickException("Auto research is not implemented yet (coming in Stage 3).")
+        run_research(topic, pro_stance, con_stance, topic_dir)
 
     click.echo("Done.")
 
