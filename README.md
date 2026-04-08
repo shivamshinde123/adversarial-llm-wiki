@@ -18,6 +18,10 @@ The output is never a winner declaration. It is a structured map of the disagree
 
 ---
 
+## Detailed Documentation
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shivamshinde123/adversarial-llm-wiki)
+
 ## Installation
 
 **Requirements:** Python 3.11+
