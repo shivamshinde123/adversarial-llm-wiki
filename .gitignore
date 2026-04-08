@@ -7,3 +7,5 @@ build/
 .venv/
 venv/
 topics/
+.pytest_cache/
+.claude/

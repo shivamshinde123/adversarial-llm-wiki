@@ -71,6 +71,118 @@ adversarial-wiki compile --topic "remote-work" --auto \
 
 ---
 
+## Example walkthrough
+
+**Topic:** Should our team work remotely or onsite?
+
+### Step 1 — Compile
+
+```bash
+adversarial-wiki compile --topic "remote-work" --auto \
+  --pro "remote work boosts productivity and employee well-being" \
+  --con "onsite work strengthens collaboration and company culture"
+```
+
+```
+[pro] Generating search queries...
+[pro] Searching: remote work productivity research, remote work employee wellbeing studies...
+[pro] Fetching 8 sources...
+[pro] Compiling wiki from 8 source(s)...
+[con] Generating search queries...
+[con] Searching: onsite work collaboration benefits, office culture productivity...
+[con] Fetching 7 sources...
+[con] Compiling wiki from 7 source(s)...
+Done.
+```
+
+This creates two wikis under `topics/remote-work/wiki/` — one arguing for remote, one arguing for onsite — each as a set of linked concept pages.
+
+### Step 2 — Debate
+
+```bash
+adversarial-wiki debate --topic "remote-work" \
+  --question "Should our engineering team go fully remote?"
+```
+
+```
+  Identifying relevant articles...
+  Loaded 4 pro article(s), 3 con article(s).
+  [Call 1/3] Pro side arguing...
+  [Call 2/3] Con side arguing...
+  [Call 3/3] Surfacing hidden assumptions...
+
+============================================================
+QUESTION: Should our engineering team go fully remote?
+
+------------------------------------------------------------
+WIKI A ARGUES
+------------------------------------------------------------
+Remote work consistently delivers higher individual output for deep-focus
+engineering tasks. According to [[async-communication]], engineers working
+remotely report 40% fewer interruptions and longer unbroken focus blocks.
+[[productivity-research]] documents that remote engineers ship more features
+per sprint when given autonomy over their environment...
+
+------------------------------------------------------------
+WIKI B ARGUES
+------------------------------------------------------------
+The strongest engineering work happens through informal, unplanned
+collaboration — the hallway conversation, the whiteboard session, the
+overheard problem. [[knowledge-transfer]] shows that onboarding time for
+new engineers doubles in fully remote teams because tacit knowledge stops
+flowing. [[team-cohesion]] links in-person time to psychological safety...
+
+------------------------------------------------------------
+HIDDEN ASSUMPTIONS & CLARIFYING QUESTIONS
+------------------------------------------------------------
+### Wiki A assumes:
+The bottleneck for your team is individual focus and autonomy. It treats
+engineering as primarily a solo activity interrupted by meetings, and
+assumes your team already has strong communication habits that translate
+to async channels.
+
+### Wiki B assumes:
+Your team's value comes primarily from emergent collaboration rather than
+individual output. It assumes your engineers are early in their careers
+or that your product is in a phase requiring high coordination, where
+tacit knowledge transfer outweighs focus time.
+
+## Before You Decide, Answer These
+1. What is the current tenure mix on your team — mostly senior engineers
+   who know the codebase, or a mix with several people still onboarding?
+2. Is your product in a mature maintenance phase (where individual output
+   dominates) or active feature exploration (where daily coordination matters)?
+3. Have you measured whether your team's current bottleneck is interruptions
+   and focus time, or alignment and shared understanding?
+```
+
+### Step 3 — Answer the clarifying questions
+
+```
+Answer the clarifying questions above, or type 'stop' to finish.
+
+Your answers (press Enter or type 'stop' to finish)
+> Mostly senior engineers, 3+ years on the codebase. We're in maintenance
+  mode shipping incremental features. Our main complaint is too many meetings.
+
+  [Round 2] Generating follow-up questions...
+
+### New Questions Based On Your Answers
+1. Do your senior engineers already have strong relationships with each
+   other built from prior in-person time, or are some of them relatively
+   new to the team despite being senior?
+2. When you say "too many meetings" — are those meetings generating useful
+   output, or are they coordination overhead that could be replaced by
+   async documentation?
+3. Is your leadership team also remote-capable, or would engineers go remote
+   while managers remain onsite — and if so, how would that affect visibility
+   and promotion dynamics?
+```
+
+The full history is saved to `topics/remote-work/debates/should-our-engineering-team-go-fully-remote/output.md`.
+
+---
+
 ## Commands
 
 ### `compile`
@@ -87,7 +199,7 @@ Builds two wikis — `wiki/pro/` and `wiki/con/` — for a topic.
 
 In **manual mode**, supported source formats are `.md`, `.txt`, and `.url` (one URL per line — fetched via trafilatura).
 
-In **auto mode**, the tool generates search queries via LLM, searches via Tavily, fetches full page content via trafilatura, and compiles directly. No raw files are saved.
+In **auto mode**, the tool generates search queries via LLM, searches via DuckDuckGo (no API key needed), fetches full page content via trafilatura, and compiles directly. No raw files are saved.
 
 ### `debate`
 
