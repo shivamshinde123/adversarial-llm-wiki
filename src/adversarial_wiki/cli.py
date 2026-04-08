@@ -28,7 +28,10 @@ def compile(topic, mode, pro_stance, con_stance):
     if not mode:
         raise click.UsageError("Specify either --manual or --auto.")
 
-    topic_dir = init_topic_dirs(topic, mode)
+    try:
+        topic_dir = init_topic_dirs(topic, mode)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="'--topic'")
     click.echo(f"Initialized topic directory: {topic_dir}")
 
     if mode == "manual":
@@ -44,12 +47,18 @@ def compile(topic, mode, pro_stance, con_stance):
         click.echo(f"Compiling wiki from {len(pro_files)} pro source(s) and {len(con_files)} con source(s)...")
         pro_sources = [f.read_text(encoding="utf-8", errors="ignore") for f in pro_files if f.is_file()]
         con_sources = [f.read_text(encoding="utf-8", errors="ignore") for f in con_files if f.is_file()]
-        compile_wiki(topic, "pro", pro_sources, topic_dir)
-        compile_wiki(topic, "con", con_sources, topic_dir)
+        try:
+            compile_wiki(topic, "pro", pro_sources, topic_dir)
+            compile_wiki(topic, "con", con_sources, topic_dir)
+        except NotImplementedError:
+            raise click.ClickException("Manual compilation is not implemented yet (coming in Stage 2).")
 
     elif mode == "auto":
         click.echo(f"Running auto research for topic: {topic}")
-        run_research(topic, pro_stance, con_stance, topic_dir)
+        try:
+            run_research(topic, pro_stance, con_stance, topic_dir)
+        except NotImplementedError:
+            raise click.ClickException("Auto research is not implemented yet (coming in Stage 3).")
 
     click.echo("Done.")
 
@@ -59,7 +68,10 @@ def compile(topic, mode, pro_stance, con_stance):
 @click.option("--question", required=True, help="Question to debate.")
 def debate(topic, question):
     """Ask a question and get a structured debate with hidden assumption surfacing."""
-    topic_dir = get_topic_dir(topic)
+    try:
+        topic_dir = get_topic_dir(topic)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="'--topic'")
 
     if not (topic_dir / "wiki" / "pro" / "index.md").exists() or \
        not (topic_dir / "wiki" / "con" / "index.md").exists():
@@ -67,17 +79,26 @@ def debate(topic, question):
             f"Wiki not compiled for topic '{topic}'. Run `compile` first."
         )
 
-    run_debate(topic, question, topic_dir)
+    try:
+        run_debate(topic, question, topic_dir)
+    except NotImplementedError:
+        raise click.ClickException("The debate command is not implemented yet (coming in Stage 4).")
 
 
 @cli.command()
 @click.option("--topic", required=True, help="Topic name.")
 def lint(topic):
     """Run health checks on the compiled wikis for a topic."""
-    topic_dir = get_topic_dir(topic)
+    try:
+        topic_dir = get_topic_dir(topic)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="'--topic'")
 
     if not topic_dir.exists():
         raise click.ClickException(f"Topic '{topic}' not found.")
 
-    passed = run_lint(topic, topic_dir)
+    try:
+        passed = run_lint(topic, topic_dir)
+    except NotImplementedError:
+        raise click.ClickException("The lint command is not implemented yet (coming in Stage 6).")
     raise SystemExit(0 if passed else 1)
