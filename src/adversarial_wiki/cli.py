@@ -47,8 +47,15 @@ def compile(topic, mode, pro_stance, con_stance):
             return
 
         click.echo(f"Compiling wiki from {len(pro_sources)} pro source(s) and {len(con_sources)} con source(s)...")
-        compile_wiki(topic, "pro", pro_sources, topic_dir)
-        compile_wiki(topic, "con", con_sources, topic_dir)
+        if pro_sources:
+            compile_wiki(topic, "pro", pro_sources, topic_dir)
+        else:
+            click.echo(f"Skipping pro wiki: no source files found in {pro_raw}")
+
+        if con_sources:
+            compile_wiki(topic, "con", con_sources, topic_dir)
+        else:
+            click.echo(f"Skipping con wiki: no source files found in {con_raw}")
 
     elif mode == "auto":
         click.echo(f"Running auto research for topic: {topic}")
