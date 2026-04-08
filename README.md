@@ -385,6 +385,21 @@ pytest tests/test_stage2.py
 
 ---
 
+## Contributing
+
+1. Open an issue describing what you want to change and why.
+2. Fork the repository and create a branch from `master`.
+3. Make your changes and ensure `pytest` passes.
+4. Open a pull request against `master`, referencing the issue with `Ref #N`.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
 ## Dependencies
 
 | Package | Purpose |
