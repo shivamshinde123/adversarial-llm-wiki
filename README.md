@@ -64,9 +64,7 @@ Let the tool research the web itself:
 adversarial-wiki compile --topic "remote-work" --auto
 
 # Custom stances
-adversarial-wiki compile --topic "remote-work" --auto \
-  --pro "remote work boosts individual productivity and well-being" \
-  --con "remote work weakens team cohesion and company culture"
+adversarial-wiki compile --topic "remote-work" --auto --pro "remote work boosts individual productivity and well-being" --con "remote work weakens team cohesion and company culture"
 ```
 
 ---
@@ -78,9 +76,7 @@ adversarial-wiki compile --topic "remote-work" --auto \
 ### Step 1 — Compile
 
 ```bash
-adversarial-wiki compile --topic "remote-work" --auto \
-  --pro "remote work boosts productivity and employee well-being" \
-  --con "onsite work strengthens collaboration and company culture"
+adversarial-wiki compile --topic "remote-work" --auto --pro "remote work boosts productivity and employee well-being" --con "onsite work strengthens collaboration and company culture"
 ```
 
 ```
@@ -408,5 +404,5 @@ MIT — see [LICENSE](LICENSE).
 | `click` | CLI framework |
 | `python-dotenv` | `.env` file loading |
 | `trafilatura` | URL-to-text extraction |
-| `duckduckgo-search` | Web search (auto mode, no API key needed) |
+| `ddgs` | Web search via DuckDuckGo (auto mode, no API key needed) |
 | `rank-bm25` | Future: BM25 retrieval for large wikis |

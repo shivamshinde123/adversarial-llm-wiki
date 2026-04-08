@@ -101,7 +101,7 @@ def _generate_queries(topic: str, side: str, stance_desc: str) -> list[str]:
 
 def _search(queries: list[str]) -> list[dict]:
     """Run each query against DuckDuckGo and return deduplicated results."""
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     seen_urls: set[str] = set()
     results: list[dict] = []
