@@ -25,6 +25,8 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
       4. Call 3 — Hidden assumption surfacer: finds underlying assumptions, generates
          3 clarifying questions
       5. Save structured output to debates/[question-slug]/output.md
+      6. Clarifying questions loop: user answers questions, LLM generates 3 deeper
+         follow-ups each round; appended to output.md until user types stop/exit
 
     Args:
         topic: Topic name.
@@ -272,12 +274,15 @@ def _clarifying_loop(
     Type 'stop' or 'exit' to quit.
     """
     all_answers: list[str] = []
-    round_num = 2
 
     click.echo("\nAnswer the clarifying questions above, or type 'stop' to finish.")
 
-    while round_num <= _MAX_ROUNDS + 1:
-        user_input = click.prompt("\nYour answers", default="stop", prompt_suffix="\n> ")
+    for round_num in range(2, _MAX_ROUNDS + 2):  # rounds 2..11 → 10 iterations max
+        user_input = click.prompt(
+            "\nYour answers (press Enter or type 'stop' to finish)",
+            default="stop",
+            prompt_suffix="\n> ",
+        )
         if user_input.strip().lower() in ("stop", "exit"):
             break
 
@@ -306,7 +311,12 @@ def _generate_followup_questions(
     con_articles: list[tuple[str, str]],
     all_answers: list[str],
 ) -> str:
-    """Generate 3 follow-up questions grounded in wiki knowledge and user answers so far."""
+    """Generate 3 follow-up questions grounded in wiki knowledge and user answers so far.
+
+    Note: passes full wiki articles + all prior answers every round. Context grows
+    linearly with round count and article count — acceptable for typical wikis but
+    could approach token limits for very large topics in late rounds.
+    """
     articles_text = (
         "### Wiki A (Pro) Articles\n" + _format_articles(pro_articles) +
         "\n\n### Wiki B (Con) Articles\n" + _format_articles(con_articles)
