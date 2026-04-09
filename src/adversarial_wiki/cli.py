@@ -1,7 +1,14 @@
-"""CLI entry point for adversarial-wiki."""
+"""CLI entry point for adversarial-wiki.
+
+This module wires the Click commands and configures logging for the
+CLI process. Library modules only create module-scoped loggers; the
+CLI decides verbosity and formatting so downstream consumers can
+import the library without side-effects.
+"""
 
 import click
 from dotenv import load_dotenv
+import logging
 
 from adversarial_wiki.utils import init_topic_dirs, get_topic_dir
 from adversarial_wiki.compiler import compile_wiki
@@ -13,9 +20,27 @@ from adversarial_wiki.lint import run_lint
 load_dotenv()
 
 
+def _setup_logging(verbosity: int) -> None:
+    """Initialize process-wide logging for the CLI.
+
+    Args:
+        verbosity: Count of ``-v`` flags (0=WARNING, 1=INFO, >=2=DEBUG).
+    """
+    level = logging.WARNING if verbosity <= 0 else (
+        logging.INFO if verbosity == 1 else logging.DEBUG
+    )
+    logging.basicConfig(
+        level=level,
+        format="%(levelname).1s %(asctime)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
 @click.group()
-def cli():
+@click.option("-v", "verbosity", count=True, help="Increase logging verbosity (use -vv for debug).")
+def cli(verbosity: int):
     """Adversarial Wiki — two opposing knowledge bases that debate each other."""
+    _setup_logging(verbosity)
 
 
 @cli.command()

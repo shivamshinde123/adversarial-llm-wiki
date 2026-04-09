@@ -1,12 +1,19 @@
-"""Lint command — health checks for compiled wikis."""
+"""Lint command — health checks for compiled wikis.
+
+Collects structural integrity issues across both sides and prints a concise
+report. Intended for CLI/CI use; returns a boolean for exit code control.
+"""
 
 import json
 import re
 from pathlib import Path
 
 import click
+import logging
 
 from adversarial_wiki.utils import slugify
+
+logger = logging.getLogger(__name__)
 
 # Fields required in every auto-mode article's frontmatter
 _AUTO_REQUIRED_FIELDS = ("mode:", "compiled:")
@@ -37,6 +44,7 @@ def run_lint(topic: str, topic_dir) -> bool:
         wiki_dir = topic_dir / "wiki" / side
         issues = _lint_side(side, wiki_dir)
         _print_report(side, issues)
+        logger.info("lint side=%s issues=%d", side, len(issues))
         if issues:
             all_passed = False
 
@@ -98,6 +106,7 @@ def _lint_side(side: str, wiki_dir: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _get_concept_pages(wiki_dir: Path) -> list[Path]:
+    """Return all concept page paths in wiki_dir, excluding index.md and log.md."""
     return [
         p for p in sorted(wiki_dir.glob("*.md"))
         if p.name not in ("index.md", "log.md")
@@ -174,6 +183,12 @@ def _check_frontmatter(concept_pages: list[Path]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _print_report(side: str, issues: list[str]) -> None:
+    """Print a pass/fail report for one wiki side to stdout.
+
+    Args:
+        side: 'pro' or 'con'.
+        issues: List of issue description strings. Empty means all checks passed.
+    """
     if not issues:
         click.echo(f"[{side}] PASSED — no issues found.")
     else:
