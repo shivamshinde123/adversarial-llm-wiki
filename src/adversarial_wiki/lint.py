@@ -106,6 +106,7 @@ def _lint_side(side: str, wiki_dir: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _get_concept_pages(wiki_dir: Path) -> list[Path]:
+    """Return all concept page paths in wiki_dir, excluding index.md and log.md."""
     return [
         p for p in sorted(wiki_dir.glob("*.md"))
         if p.name not in ("index.md", "log.md")
@@ -182,6 +183,12 @@ def _check_frontmatter(concept_pages: list[Path]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def _print_report(side: str, issues: list[str]) -> None:
+    """Print a pass/fail report for one wiki side to stdout.
+
+    Args:
+        side: 'pro' or 'con'.
+        issues: List of issue description strings. Empty means all checks passed.
+    """
     if not issues:
         click.echo(f"[{side}] PASSED — no issues found.")
     else:
