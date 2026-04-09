@@ -1,10 +1,16 @@
-"""Wiki Compilation Engine — builds structured wiki from source content."""
+"""Wiki compilation engine.
+
+Transforms raw sources into a structured per‑side wiki (articles + index + log),
+using the LLM to extract concepts and write article bodies. Public API is
+`compile_wiki()`; helpers remain module‑private.
+"""
 
 import json
 import re
 from datetime import date
 from pathlib import Path
 
+import logging
 from adversarial_wiki import llm
 from adversarial_wiki.utils import slugify, extract_json
 
@@ -36,9 +42,11 @@ def compile_wiki(
     wiki_dir.mkdir(parents=True, exist_ok=True)
 
     combined = _combine_sources(sources)
+    logger.info("[%s] %s sources combined (chars=%d)", side, len(sources), len(combined))
 
     # Step 1: extract concept names
     raw_concepts = _extract_concepts(topic, side, combined)
+    logger.debug("[%s] extracted %d raw concepts", side, len(raw_concepts))
 
     # Filter out concepts with empty slugs; deduplicate slugs
     concepts: list[tuple[str, str]] = []  # (concept_name, slug)
@@ -58,15 +66,18 @@ def compile_wiki(
             mode=mode, source_records=source_records,
         )
         written.append((slug, concept, summary))
+        logger.debug("[%s] wrote article '%s'", side, slug)
 
     # Step 3: write index.md
     _write_index(topic, side, written, wiki_dir)
+    logger.info("[%s] index.md written (%d articles)", side, len(written))
 
     # Step 4: write log.md — Fix 9: log actual files written, not raw concept count
     _write_log(topic, side, sources, written, wiki_dir)
 
     # Step 5: flag contradictions within this side
     _flag_contradictions(topic, side, combined, written, wiki_dir)
+    logger.info("[%s] compilation complete", side)
 
 
 # ---------------------------------------------------------------------------
@@ -299,3 +310,4 @@ def _extract_summary(article_body: str, concept: str) -> str:
             sentences = re.split(r"(?<=[.!?])\s+", para)
             return " ".join(sentences[:2])
     return f"Article about {concept}."
+logger = logging.getLogger(__name__)

@@ -1,4 +1,8 @@
-"""Auto Research Agent — searches the web and feeds content to the compiler."""
+"""Auto research agent.
+
+Searches the web (DuckDuckGo via `ddgs`), fetches full text with
+`trafilatura`, and passes sources to the compiler to build per‑side wikis.
+"""
 
 import json
 import re
@@ -6,6 +10,7 @@ from datetime import date
 from pathlib import Path
 
 import click
+import logging
 
 from adversarial_wiki import llm
 from adversarial_wiki.compiler import compile_wiki
@@ -44,15 +49,18 @@ def run_research(
     for side, stance_desc in [("pro", pro_desc), ("con", con_desc)]:
         click.echo(f"  [{side}] Generating search queries...")
         queries = _generate_queries(topic, side, stance_desc)
+        logger.info("[%s] generated %d queries", side, len(queries))
         click.echo(f"  [{side}] Searching: {', '.join(queries)}")
 
         search_results = _search(queries)
+        logger.info("[%s] search returned %d results", side, len(search_results))
         if not search_results:
             click.echo(f"  [{side}] Warning: no search results found.", err=True)
             continue
 
         click.echo(f"  [{side}] Fetching {len(search_results)} sources...")
         sources, source_records = _fetch_sources(search_results)
+        logger.info("[%s] fetched %d sources", side, len(sources))
 
         if not sources:
             click.echo(f"  [{side}] Warning: could not fetch any source content.", err=True)
@@ -223,3 +231,4 @@ def _url_to_filename(url: str) -> str:
     name = re.sub(r"[^\w.-]", "-", name)
     name = re.sub(r"-+", "-", name).strip("-")
     return f"{name[:60]}.txt"
+logger = logging.getLogger(__name__)

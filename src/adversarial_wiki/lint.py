@@ -1,12 +1,19 @@
-"""Lint command — health checks for compiled wikis."""
+"""Lint command — health checks for compiled wikis.
+
+Collects structural integrity issues across both sides and prints a concise
+report. Intended for CLI/CI use; returns a boolean for exit code control.
+"""
 
 import json
 import re
 from pathlib import Path
 
 import click
+import logging
 
 from adversarial_wiki.utils import slugify
+
+logger = logging.getLogger(__name__)
 
 # Fields required in every auto-mode article's frontmatter
 _AUTO_REQUIRED_FIELDS = ("mode:", "compiled:")
@@ -37,6 +44,7 @@ def run_lint(topic: str, topic_dir) -> bool:
         wiki_dir = topic_dir / "wiki" / side
         issues = _lint_side(side, wiki_dir)
         _print_report(side, issues)
+        logger.info("lint side=%s issues=%d", side, len(issues))
         if issues:
             all_passed = False
 

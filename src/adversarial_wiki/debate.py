@@ -1,9 +1,16 @@
-"""Debate Engine — three-call debate pipeline with smart retrieval."""
+"""Debate engine — three-call pipeline with smart retrieval.
+
+Coordinates retrieval of relevant wiki articles from both sides, runs the
+three LLM calls (pro argues, con argues, assumption surfacer), writes the
+structured output, and optionally runs an interactive clarifying-questions
+loop.
+"""
 
 from datetime import date
 from pathlib import Path
 
 import click
+import logging
 
 from adversarial_wiki import llm
 from adversarial_wiki.utils import slugify
@@ -42,22 +49,27 @@ def run_debate(topic: str, question: str, topic_dir: Path) -> None:
     con_articles = _retrieve_articles(question, wiki_con, "con")
 
     click.echo(f"  Loaded {len(pro_articles)} pro article(s), {len(con_articles)} con article(s).")
+    logger.info("retrieved pro=%d con=%d", len(pro_articles), len(con_articles))
 
     # Step 2: pro argues
     click.echo("  [Call 1/3] Pro side arguing...")
     pro_argument = _argue(topic, question, "pro", pro_articles)
+    logger.debug("pro argument chars=%d", len(pro_argument))
 
     # Step 3: con argues
     click.echo("  [Call 2/3] Con side arguing...")
     con_argument = _argue(topic, question, "con", con_articles)
+    logger.debug("con argument chars=%d", len(con_argument))
 
     # Step 4: hidden assumption surfacer
     click.echo("  [Call 3/3] Surfacing hidden assumptions...")
     assumptions = _surface_assumptions(topic, question, pro_argument, con_argument)
+    logger.debug("assumptions chars=%d", len(assumptions))
 
     # Step 5: save output
     output_path = _save_output(question, pro_argument, con_argument, assumptions, topic_dir, pro_articles, con_articles)
     click.echo(f"\nDebate saved to: {output_path}")
+    logger.info("output saved: %s", output_path)
     click.echo("\n" + "=" * 60)
     click.echo(_format_for_display(question, pro_argument, con_argument, assumptions))
 
@@ -412,3 +424,4 @@ def _format_articles(articles: list[tuple[str, str]]) -> str:
     for slug, content in articles:
         parts.append(f"=== Article: {slug} ===\n\n{content}")
     return "\n\n---\n\n".join(parts)
+logger = logging.getLogger(__name__)
