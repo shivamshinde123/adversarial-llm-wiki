@@ -9,3 +9,10 @@ venv/
 .pytest_cache/
 .claude/
 topics/
+
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/manifest.json
+graphify-out/.graphify_chunks.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
