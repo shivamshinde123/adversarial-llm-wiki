@@ -1,0 +1,13 @@
+.git/
+.venv/
+.pytest_cache/
+graphify-out/
+.claude/
+__pycache__/
+*.pyc
+
+# Local env and machine-specific config
+.env
+
+# Generated sample/output corpus, not core repo structure
+topics/
