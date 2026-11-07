@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adversarial Wiki — two wikis, one honest argument</title>
+<meta name="description" content="Compile opposing pro and con wikis for any topic, make them argue, and surface the hidden assumption each side never challenges.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+/* Design reference: Spellbook via Refero Styles — a midnight courtroom lit by coral ink.
+   Flat surfaces stepped by background (#121719 → #222729 → #2b3133), 4px panels, pill-only buttons,
+   one coral action color, editorial serif for display only. */
+:root{--ink:#121719;--lectern:#222729;--drawer:#2b3133;--white:#fff;--parchment:#f1f3f4;--ashen:#909394;--smoke:#acaeaf;
+  --coral:#f94d1e;--indigo:#7834b5;--cyan:#029cff;
+  --serif:"Playfair Display","DM Serif Display",Georgia,serif;--sans:Inter,system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:dark}
+body{background:var(--ink);color:var(--white);font:400 16px/1.5 var(--sans);letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+a{color:var(--cyan)}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.eyebrow{font:500 13px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--smoke)}
+
+nav.top{border-bottom:1px solid #2b3133}
+nav.top .wrap{height:68px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font:500 22px var(--serif);color:var(--white);text-decoration:none;letter-spacing:-.02em}
+.logo b{width:22px;height:22px;border-radius:50%;background:linear-gradient(90deg,var(--white) 50%,var(--ashen) 50%);display:inline-block}
+nav.top ul{display:flex;gap:28px;list-style:none;padding:0;font-size:15px}
+nav.top ul a{color:var(--smoke);text-decoration:none}nav.top ul a:hover{color:var(--white)}
+
+.pill{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 24px;border-radius:1600px;font:500 16px var(--sans);text-decoration:none;transition:filter .15s}
+.pill.coral{background:var(--coral);color:var(--white)}.pill.coral:hover{filter:brightness(1.1)}
+.pill.ghost{color:var(--white);box-shadow:inset 0 0 0 1px var(--white)}.pill.ghost:hover{background:var(--lectern)}
+.badge{display:inline-block;padding:5px 12px;border-radius:100px;font:500 12px var(--sans);letter-spacing:.06em;text-transform:uppercase}
+
+header.hero{padding:104px 0 96px;text-align:center}
+h1{font:500 clamp(48px,7.4vw,77px)/1 var(--serif);letter-spacing:-.04em;max-width:15ch;margin:22px auto 0}
+h1 em{font-style:italic;color:var(--coral)}
+.lede{max-width:620px;margin:26px auto 36px;color:var(--smoke);font-size:18px}
+.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+section{padding:96px 0}
+h2{font:500 clamp(36px,5vw,51px)/1.1 var(--serif);letter-spacing:-.03em;max-width:18ch}
+h3{font:600 20px/1.3 var(--sans)}
+.intro{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:end;margin-bottom:48px}
+.intro p{color:var(--smoke);font-size:17px}
+
+/* the case file */
+.case{background:var(--lectern);border-radius:4px;overflow:hidden}
+.case-q{padding:28px 32px;border-bottom:1px solid var(--drawer);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.case-q p{font:500 28px/1.2 var(--serif);letter-spacing:-.02em}
+.log{padding:16px 32px;background:var(--drawer);font:400 13px/1.8 var(--mono);color:var(--smoke)}
+.log b{color:var(--white);font-weight:400}
+.sides{display:grid;grid-template-columns:1fr 1fr}
+.side{padding:32px}
+.side + .side{border-left:1px solid var(--drawer)}
+.side .badge{background:var(--parchment);color:var(--ink)}
+.side.b .badge{background:var(--indigo);color:var(--white)}
+.side p{margin-top:16px;color:var(--parchment);font-size:16px;line-height:1.65}
+.wl{color:var(--cyan);font-family:var(--mono);font-size:14px}
+.verdict{background:var(--parchment);color:var(--ink);padding:32px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.verdict h3{font:500 24px var(--serif);letter-spacing:-.02em;margin-bottom:8px}
+.verdict p{color:#3a4042;font-size:15px}
+.questions{grid-column:1/-1;border-top:1px solid #d5d8d9;padding-top:24px}
+.questions ol{margin:12px 0 0;padding-left:20px;display:grid;gap:8px;color:#3a4042}
+.never{margin-top:18px;color:var(--smoke);font-size:14px;text-align:center}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.step{background:var(--lectern);border-radius:4px;padding:28px;display:flex;flex-direction:column;gap:12px}
+.step .n{font:500 51px/1 var(--serif);color:var(--coral);letter-spacing:-.03em}
+.step p{color:var(--smoke)}
+.step code{font:400 13px var(--mono);color:var(--parchment);background:var(--drawer);padding:2px 6px;border-radius:4px}
+.step.indigo{background:var(--indigo)}.step.indigo p{color:#e9dcf5}.step.indigo .n{color:var(--white)}
+
+/* terminal */
+.term{background:var(--drawer);border-radius:4px;padding:28px;font:400 14px/1.85 var(--mono);color:var(--parchment);overflow-x:auto}
+.term .c{color:var(--ashen)}.term .k{color:var(--coral)}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.modes dl{display:grid;gap:22px}
+.modes dt{font-weight:600;font-size:18px}
+.modes dd{margin:6px 0 0;color:var(--smoke)}
+
+.lint{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,1fr);gap:0 48px;margin-top:40px}
+.lint li{padding:16px 0;border-top:1px solid var(--drawer);display:flex;gap:14px;color:var(--parchment)}
+.lint li::before{content:"✓";color:var(--coral);font-weight:600}
+
+.closing{text-align:center;padding:120px 0}
+.closing h2{margin:0 auto 28px;max-width:20ch}
+footer{border-top:1px solid var(--drawer);padding:28px 0;color:var(--ashen);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+@media(max-width:860px){.intro,.sides,.verdict,.modes{grid-template-columns:1fr}.side + .side{border-left:0;border-top:1px solid var(--drawer)}.steps,.lint{grid-template-columns:1fr}nav.top ul li:not(:last-child){display:none}}
+@media(max-width:560px){.case-q,.side,.verdict,.log{padding-left:20px;padding-right:20px}section{padding:72px 0}}
+</style>
+</head>
+<body>
+<nav class="top" aria-label="Primary"><div class="wrap">
+  <a class="logo" href="#"><b aria-hidden="true"></b>Adversarial Wiki</a>
+  <ul><li><a href="#case">The output</a></li><li><a href="#how">How it works</a></li><li><a href="#try">Try it</a></li><li><a href="https://github.com/shivamshinde123/adversarial-llm-wiki">GitHub</a></li></ul>
+</div></nav>
+
+<main>
+<header class="hero"><div class="wrap">
+  <span class="eyebrow">Inspired by Karpathy's LLM Wiki pattern</span>
+  <h1>Hear the strongest case for <em>both</em> sides.</h1>
+  <p class="lede">Adversarial Wiki compiles two opposing knowledge bases for any topic, makes each argue its best case, then names the hidden assumption each side relies on and the other never challenges.</p>
+  <div class="ctas"><a class="pill coral" href="#try">Install the CLI</a><a class="pill ghost" href="#case">See a debate</a></div>
+</div></header>
+
+<section id="case" style="padding-top:0"><div class="wrap">
+  <div class="intro"><h2>The output is a map, not a verdict.</h2><p>Every debate runs three model calls: the pro wiki argues, the con wiki argues, and a third call finds what each side quietly assumes. Then it asks you the questions that would actually settle it.</p></div>
+  <article class="case" aria-label="Example debate">
+    <div class="case-q"><span class="eyebrow">Question</span><p>Should our engineering team go fully remote?</p></div>
+    <div class="log" aria-hidden="true">Loaded <b>4</b> pro article(s), <b>3</b> con article(s).<br>[Call 1/3] Pro side arguing… [Call 2/3] Con side arguing… [Call 3/3] Surfacing hidden assumptions…</div>
+    <div class="sides">
+      <div class="side"><span class="badge">Wiki A argues</span><p>Remote work gives engineers longer unbroken focus blocks and fewer interruptions, per <span class="wl">[[async-communication]]</span>. <span class="wl">[[productivity-research]]</span> shows teams ship more when they control their environment.</p></div>
+      <div class="side b"><span class="badge">Wiki B argues</span><p>The best engineering work comes from unplanned collaboration. <span class="wl">[[knowledge-transfer]]</span> shows onboarding slows sharply when tacit knowledge stops flowing, and <span class="wl">[[team-cohesion]]</span> ties in-person time to trust.</p></div>
+    </div>
+    <div class="verdict">
+      <div><h3>Wiki A assumes</h3><p>Your bottleneck is individual focus, and your team already communicates well in writing.</p></div>
+      <div><h3>Wiki B assumes</h3><p>Your value comes from emergent collaboration, maybe because the team is junior or the product needs tight coordination.</p></div>
+      <div class="questions"><span class="eyebrow" style="color:#5b6163">Before you decide, answer these</span>
+        <ol><li>What is your team's tenure mix?</li><li>Is the product in maintenance or active exploration?</li><li>Is your real bottleneck focus time, or shared understanding?</li></ol>
+      </div>
+    </div>
+  </article>
+  <p class="never">Your answers feed the next round of sharper questions. Every round is appended to the output file.</p>
+</div></section>
+
+<section id="how"><div class="wrap">
+  <div class="intro"><h2>Compile. Debate. Deepen.</h2><p>Each wiki is a folder of linked concept pages with an index, so retrieval reads the index first and loads only the relevant articles.</p></div>
+  <div class="steps">
+    <article class="step"><span class="n">01</span><h3>Compile two wikis</h3><p>Manual mode reads your <code>.md</code>, <code>.txt</code> and <code>.url</code> files from <code>raw/pro</code> and <code>raw/con</code>. Auto mode writes search queries per stance and fetches sources itself.</p></article>
+    <article class="step"><span class="n">02</span><h3>Debate a question</h3><p>Both sides argue from their own articles, citing them as <code>[[wiki-links]]</code>. A third call surfaces each side's core assumption.</p></article>
+    <article class="step indigo"><span class="n">03</span><h3>Deepen your thinking</h3><p>An interactive loop turns your answers into progressively targeted questions until you type <code>stop</code>.</p></article>
+  </div>
+</div></section>
+
+<section id="try" style="background:#0d1112"><div class="wrap modes">
+  <div>
+    <span class="eyebrow">Try it · Python 3.11+</span>
+    <h2 style="margin:14px 0 32px">Two modes, one command line.</h2>
+    <dl>
+      <div><dt>Manual mode</dt><dd>You choose the evidence. Drop sources into each side's raw folder and compile.</dd></div>
+      <div><dt>Auto mode</dt><dd>The tool researches the web per stance. Set your own <code style="font-family:var(--mono);font-size:13px">--pro</code> and <code style="font-family:var(--mono);font-size:13px">--con</code> stances or let it choose.</dd></div>
+      <div><dt>Lint</dt><dd>Health checks before you trust a wiki.</dd></div>
+    </dl>
+  </div>
+  <pre class="term" aria-label="Example commands"><span class="c"># install</span>
+git clone https://github.com/shivamshinde123/adversarial-llm-wiki.git
+cd adversarial-llm-wiki && pip install -e .
+<span class="c"># .env → ANTHROPIC_API_KEY=…</span>
+
+<span class="c"># research both sides</span>
+<span class="k">adversarial-wiki</span> compile --topic "remote-work" --auto \
+  --pro "remote work boosts productivity" \
+  --con "onsite work strengthens culture"
+
+<span class="c"># argue it out</span>
+<span class="k">adversarial-wiki</span> debate --topic "remote-work" \
+  --question "Should our team go fully remote?"
+
+<span class="c"># check wiki health</span>
+<span class="k">adversarial-wiki</span> lint --topic "remote-work"</pre>
+</div></section>
+
+<section><div class="wrap">
+  <h2>What lint checks, on both sides.</h2>
+  <ul class="lint">
+    <li>Each wiki folder exists and is not empty</li><li>Each side has an <code style="font-family:var(--mono)">index.md</code></li>
+    <li>No orphaned concept pages missing from the index</li><li>No broken <code style="font-family:var(--mono)">[[wiki-links]]</code> in any page</li>
+    <li>Auto mode: <code style="font-family:var(--mono)">sources.json</code> is intact</li><li>Auto mode: every page has valid frontmatter</li>
+  </ul>
+</div></section>
+
+<section class="closing"><div class="wrap">
+  <h2>Decide after you've heard the best case against yourself.</h2>
+  <a class="pill coral" href="https://github.com/shivamshinde123/adversarial-llm-wiki">Get it on GitHub</a>
+</div></section>
+</main>
+
+<footer><div class="wrap"><span>Built by <a href="https://github.com/shivamshinde123">Shivam Shinde</a></span><span>Python · Click · Claude</span></div></footer>
+</body>
+</html>
